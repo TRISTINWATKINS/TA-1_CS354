@@ -37,7 +37,7 @@ public class Parser {
 		return scanner.pos();
 	}
 
-	// existing mul/add ops unchanged
+	
 	private NodeMulop parseMulop() throws SyntaxException {
 		if (curr().equals(new Token("*"))) {
 			match("*");
@@ -79,7 +79,6 @@ public class Parser {
 			match("id");
 			return new NodeFactId(pos(), id.lex());
 		}
-		// keywords true/false as numbers 1.0/0.0 represented via NodeFactNum
 		if (curr().equals(new Token("true"))) {
 			match("true");
 			return new NodeFactNum("1.0");
@@ -97,7 +96,7 @@ public class Parser {
     java.util.List<Node> stmts = new java.util.ArrayList<>();
     while (!curr().equals(new Token("EOF"))) {
         Node stmt = parseStmt();
-        if (curr().equals(new Token(";")))  // optional semicolon
+        if (curr().equals(new Token(";")))  
             match(";");
         stmts.add(stmt);
     }
@@ -116,7 +115,6 @@ public class Parser {
 	}
 
 	private NodeExpr parseExpr() throws SyntaxException {
-		// this returns the arithmetic additive expression (lowest of arithmetic)
 		NodeTerm term = parseTerm();
 		NodeAddop addop = parseAddop();
 		if (addop == null)
@@ -128,10 +126,8 @@ public class Parser {
 
 	/* --- New: boolean / relational operators --- */
 
-	// relational: uses arithmetic expressions on each side
 	private Node parseRelational() throws SyntaxException {
 		NodeExpr left = parseExpr();
-		// check relational ops
 		if (curr().equals(new Token("<"))) {
 			match("<");
 			NodeExpr right = parseExpr();
@@ -162,22 +158,18 @@ public class Parser {
 			NodeExpr right = parseExpr();
 			return new NodeRel(left, "!=", right, pos());
 		}
-		// no relational operator -> just return the arithmetic expression node
 		return left;
 	}
 
-	// logical NOT / parentheses handled here: we support '!' unary operator
 	private Node parseUnaryLogic() throws SyntaxException {
 		if (curr().equals(new Token("!"))) {
 			match("!");
-			Node operand = parseUnaryLogic(); // allow chaining !
+			Node operand = parseUnaryLogic(); 
 			return new NodeNot(operand, pos());
 		}
-		// if next tokens begin an arithmetic/relational expression
 		return parseRelational();
 	}
 
-	// logical AND has higher precedence than OR
 	private Node parseAnd() throws SyntaxException {
 		Node left = parseUnaryLogic();
 		while (curr().equals(new Token("&&"))) {
@@ -213,7 +205,7 @@ public class Parser {
 		match("(");
 		Node cond = parseOr();
 		match(")");
-		Node thenStmt = parseStmt(); // a statement
+		Node thenStmt = parseStmt(); 
 		Node elseStmt = null;
 		if (curr().equals(new Token("else"))) {
 			match("else");
@@ -234,10 +226,8 @@ public class Parser {
 	private Node parseBlock() throws SyntaxException {
 		match("{");
 		java.util.List<Node> stmts = new java.util.ArrayList<>();
-		// accept zero or more statements inside block
 		while (!curr().equals(new Token("}"))) {
 			Node s = parseStmt();
-			// allow optional semicolon after statements (except block)
 			if (curr().equals(new Token(";")))
 				match(";");
 			stmts.add(s);
@@ -255,16 +245,14 @@ public class Parser {
 		return new NodeRd(id.lex());
 	}
 
-	// NOTE: There is already NodeWr class (wr(expr)) in your TA1 code.
 	private Node parseWr() throws SyntaxException {
 		match("wr");
 		match("(");
-		Node expr = parseOr(); // wr can take full expression
+		Node expr = parseOr(); 
 		match(")");
-		return new NodeWrAdapter(expr); // adapter to fit NodeWr API
+		return new NodeWrAdapter(expr); 
 	}
 
-	// parse a single statement (assignment, if, while, block, rd, wr)
 	private Node parseStmt() throws SyntaxException {
 		Token t = curr();
 		if (t.equals(new Token("if"))) {
@@ -275,13 +263,11 @@ public class Parser {
 			return parseBlock();
 		} else if (t.equals(new Token("rd"))) {
 			Node rd = parseRd();
-			// statements that are rd(...) and wr(...) should be terminated by ';' by caller
 			return rd;
 		} else if (t.equals(new Token("wr"))) {
 			Node wr = parseWr();
 			return wr;
 		} else {
-			// assignment
 			NodeAssn assn = parseAssn();
 			return assn;
 		}

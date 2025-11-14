@@ -24,7 +24,6 @@ public class Scanner {
 	private int pos; // index of next char in program
 	private Token token; // last/current scanned token
 
-	// sets of various characters and lexemes
 	private Set<String> whitespace = new HashSet<String>();
 	private Set<String> digits = new HashSet<String>();
 	private Set<String> letters = new HashSet<String>();
@@ -32,7 +31,6 @@ public class Scanner {
 	private Set<String> keywords = new HashSet<String>();
 	private Set<String> operators = new HashSet<String>();
 
-	// initializers for previous sets
 
 	private void fill(Set<String> s, char lo, char hi) {
 		for (char c = lo; c <= hi; c++)
@@ -60,7 +58,6 @@ public class Scanner {
 	}
 
 	private void initOperators(Set<String> s) {
-		// single-char
 		s.add("=");
 		s.add("+");
 		s.add("-");
@@ -75,7 +72,6 @@ public class Scanner {
 		s.add("{");
 		s.add("}");
 		s.add(",");
-		// multi-char
 		s.add("==");
 		s.add("!=");
 		s.add("<=");
@@ -96,9 +92,7 @@ public class Scanner {
 		s.add("false");
 	}
 
-	// constructor:
-	// - squirrel-away source program
-	// - initialize sets
+	
 	public Scanner(String program) {
 		this.program = program;
 		pos = 0;
@@ -111,7 +105,6 @@ public class Scanner {
 		initOperators(operators);
 	}
 
-	// handy string-processing methods
 
 	public boolean done() {
 		return pos >= program.length();
@@ -132,12 +125,10 @@ public class Scanner {
 			pos++;
 	}
 
-	// scan various kinds of lexeme
 
 	private void nextNumber() {
 		int old = pos;
 		many(digits);
-		// optionally accept decimal point and fraction
 		if (!done() && program.charAt(pos) == '.') {
 			pos++;
 			many(digits);
@@ -155,7 +146,6 @@ public class Scanner {
 
 	private void nextOp() {
 		int old = pos;
-		// try two-char operator
 		if (pos + 1 < program.length()) {
 			String lex2 = program.substring(old, old + 2);
 			if (operators.contains(lex2)) {
@@ -164,25 +154,21 @@ public class Scanner {
 				return;
 			}
 		}
-		// single char
 		pos = old + 1;
 		String lex1 = program.substring(old, pos);
-		token = new Token(lex1); // one-char operator
+		token = new Token(lex1); 
 	}
 
 	private void skipComments() {
-		// support // comments (to end-of-line)
 		while (!done() && program.charAt(pos) == '/' && pos + 1 < program.length()
 				&& program.charAt(pos + 1) == '/') {
-			// consume the '//' and skip until newline
 			pos += 2;
 			past('\n');
 			many(whitespace);
 		}
 	}
 
-	// This method determines the kind of the next token (e.g., "id"),
-	// and calls a method to scan that token's lexeme (e.g., "foo").
+	
 	public boolean next() {
 		skipComments();
 		many(whitespace);
@@ -195,7 +181,7 @@ public class Scanner {
 			nextNumber();
 		else if (letters.contains(c))
 			nextKwId();
-		else if (operators.contains(c) || (c.equals("&") || c.equals("|"))) // allow first char
+		else if (operators.contains(c) || (c.equals("&") || c.equals("|"))) 
 			nextOp();
 		else {
 			System.err.println("illegal character at position " + pos);
@@ -205,8 +191,6 @@ public class Scanner {
 		return true;
 	}
 
-	// This method scans the next lexeme,
-	// if the current token is the expected token.
 	public void match(Token t) throws SyntaxException {
 		if (!t.equals(curr()))
 			throw new SyntaxException(pos, t, curr());
@@ -223,7 +207,6 @@ public class Scanner {
 		return pos;
 	}
 
-	// for unit testing
 	public static void main(String[] args) {
 		try {
 			Scanner scanner = new Scanner(args[0]);

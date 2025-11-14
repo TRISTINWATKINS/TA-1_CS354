@@ -7,7 +7,7 @@ public class NodeFactNum extends NodeFact {
 	}
 
 	public double eval(Environment env) throws EvalException {
-		return Double.parseDouble(num); // going to use double instead of Integer.parseInt
+		return Double.parseDouble(num); 
 	}
 
 	public String code() {
