@@ -1,17 +1,18 @@
+// NodeStmt.java
 public class NodeStmt extends Node {
 
-	private NodeAssn assn;
+	private Node node; 
 
-	public NodeStmt(NodeAssn assn) {
-		this.assn = assn;
+	public NodeStmt(Node node) {
+		this.node = node;
 	}
 
 	public double eval(Environment env) throws EvalException {
-		return assn.eval(env);
+		return node.eval(env);
 	}
 
 	public String code() {
-		return assn.code();
+		return node.code();
 	}
 
 }

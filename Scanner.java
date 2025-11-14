@@ -1,19 +1,19 @@
-
+// Scanner.java
+//
 // This class is a scanner for the program
 // and programming language being interpreted.
+
 /**
- * Scanner.java By Tristin Watkins
+ * Scanner.java By Tristin Watkins "Changed some stuff for the continuation of TA2"
  *
  * Tokenizes source input into individual tokens for parsing.
- * Implements an ad-hoc scanner for the TA1 translator.
- * 
+ * Implements an ad-hoc scanner for the TA1/TA2 translator.
+ *
  * Features:
  *  - Supports identifiers, numbers, operators, and punctuation.
  *  - Ignores whitespace.
- *  - Added support for comments. Lines beginning with '#' are ignored.
- *
- * Example comment syntax:
- *   # This is a comment line
+ *  - Supports // comments (to end of line).
+ *  - Recognizes TA2 keywords and multi-character operators.
  */
 
 import java.util.*;
@@ -60,6 +60,7 @@ public class Scanner {
 	}
 
 	private void initOperators(Set<String> s) {
+		// single-char
 		s.add("=");
 		s.add("+");
 		s.add("-");
@@ -68,9 +69,31 @@ public class Scanner {
 		s.add("(");
 		s.add(")");
 		s.add(";");
+		s.add("<");
+		s.add(">");
+		s.add("!");
+		s.add("{");
+		s.add("}");
+		s.add(",");
+		// multi-char
+		s.add("==");
+		s.add("!=");
+		s.add("<=");
+		s.add(">=");
+		s.add("&&");
+		s.add("||");
 	}
 
 	private void initKeywords(Set<String> s) {
+		s.add("if");
+		s.add("then");
+		s.add("else");
+		s.add("while");
+		s.add("do");
+		s.add("rd");
+		s.add("wr");
+		s.add("true");
+		s.add("false");
 	}
 
 	// constructor:
@@ -100,19 +123,8 @@ public class Scanner {
 	}
 
 	/**
-	 * Retrieves the next token from the source input.
-	 * 
-	 * @return The next Token.
+	 * Advances past the next occurrence of character c (used by comment skipping).
 	 */
-	// This method advances the scanner,
-	// until the current input character
-	// is just after a sequence of one or more
-	// of a particular character.
-	// Arguments:
-	// c = the character to search for
-	// Members:
-	// program = the scanner's input
-	// pos = index of current input character
 	private void past(char c) {
 		while (!done() && c != program.charAt(pos))
 			pos++;
@@ -121,15 +133,15 @@ public class Scanner {
 	}
 
 	// scan various kinds of lexeme
-	/**
-	 * Retrieves the next token from the source input.
-	 * 
-	 * @return The next Token.
-	 */
 
 	private void nextNumber() {
 		int old = pos;
 		many(digits);
+		// optionally accept decimal point and fraction
+		if (!done() && program.charAt(pos) == '.') {
+			pos++;
+			many(digits);
+		}
 		token = new Token("num", program.substring(old, pos));
 	}
 
@@ -143,21 +155,27 @@ public class Scanner {
 
 	private void nextOp() {
 		int old = pos;
-		pos = old + 2;
-		if (!done()) {
-			String lexeme = program.substring(old, pos);
-			if (operators.contains(lexeme)) {
-				token = new Token(lexeme); // two-char operator
+		// try two-char operator
+		if (pos + 1 < program.length()) {
+			String lex2 = program.substring(old, old + 2);
+			if (operators.contains(lex2)) {
+				pos = old + 2;
+				token = new Token(lex2);
 				return;
 			}
 		}
+		// single char
 		pos = old + 1;
-		String lexeme = program.substring(old, pos);
-		token = new Token(lexeme); // one-char operator
+		String lex1 = program.substring(old, pos);
+		token = new Token(lex1); // one-char operator
 	}
 
 	private void skipComments() {
-		while (!done() && program.charAt(pos) == '/' && pos + 1 < program.length() && program.charAt(pos + 1) == '/') {
+		// support // comments (to end-of-line)
+		while (!done() && program.charAt(pos) == '/' && pos + 1 < program.length()
+				&& program.charAt(pos + 1) == '/') {
+			// consume the '//' and skip until newline
+			pos += 2;
 			past('\n');
 			many(whitespace);
 		}
@@ -177,7 +195,7 @@ public class Scanner {
 			nextNumber();
 		else if (letters.contains(c))
 			nextKwId();
-		else if (operators.contains(c))
+		else if (operators.contains(c) || (c.equals("&") || c.equals("|"))) // allow first char
 			nextOp();
 		else {
 			System.err.println("illegal character at position " + pos);

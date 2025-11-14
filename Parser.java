@@ -3,7 +3,7 @@
 // It constructs and has-a Scanner for the program
 // being parsed.
 /**
- * Parser.java By Tristin Watkins
+ * Parser.java By Tristin Watkins "Added more and changed things for TA2"
  *
  * Implements a recursive-descent parser that builds the abstract syntax tree
  * (AST).
@@ -17,6 +17,9 @@
  * - Added support for prefix unary minus (-Fact).
  * - Updated parsing logic to return Node objects using double precision.
  */
+
+
+import java.util.*;	
 
 public class Parser {
 
@@ -34,6 +37,7 @@ public class Parser {
 		return scanner.pos();
 	}
 
+	// existing mul/add ops unchanged
 	private NodeMulop parseMulop() throws SyntaxException {
 		if (curr().equals(new Token("*"))) {
 			match("*");
@@ -58,34 +62,6 @@ public class Parser {
 		return null;
 	}
 
-	// private NodeFact parseFact() throws SyntaxException {
-	// if (curr().equals(new Token("("))) {
-	// match("(");
-	// NodeExpr expr = parseExpr();
-	// match(")");
-	// return new NodeFactExpr(expr);
-	// }
-	// if (curr().equals(new Token("id"))) {
-	// Token id = curr();
-	// match("id");
-	// return new NodeFactId(pos(), id.lex());
-	// }
-	// Token num = curr();
-	// match("num");
-	// return new NodeFactNum(num.lex());
-	// }
-	/**
-	 * Parses a Fact according to the grammar.
-	 * Supports:
-	 * - Prefix unary minus (e.g., -x or -(x+1))
-	 * - Parenthesized expressions
-	 * - Identifiers
-	 * - Numeric constants
-	 * 
-	 * @return A NodeFact representing the parsed expression.
-	 * @throws SyntaxException if the source is malformed.
-	 */
-
 	private NodeFact parseFact() throws SyntaxException {
 		if (curr().equals(new Token("-"))) {
 			match("-");
@@ -103,10 +79,31 @@ public class Parser {
 			match("id");
 			return new NodeFactId(pos(), id.lex());
 		}
+		// keywords true/false as numbers 1.0/0.0 represented via NodeFactNum
+		if (curr().equals(new Token("true"))) {
+			match("true");
+			return new NodeFactNum("1.0");
+		}
+		if (curr().equals(new Token("false"))) {
+			match("false");
+			return new NodeFactNum("0.0");
+		}
 		Token num = curr();
 		match("num");
 		return new NodeFactNum(num.lex());
 	}
+
+	private Node parseStmtList() throws SyntaxException {
+    java.util.List<Node> stmts = new java.util.ArrayList<>();
+    while (!curr().equals(new Token("EOF"))) {
+        Node stmt = parseStmt();
+        if (curr().equals(new Token(";")))  // optional semicolon
+            match(";");
+        stmts.add(stmt);
+    }
+    return new NodeBlock(stmts);
+}
+
 
 	private NodeTerm parseTerm() throws SyntaxException {
 		NodeFact fact = parseFact();
@@ -119,6 +116,7 @@ public class Parser {
 	}
 
 	private NodeExpr parseExpr() throws SyntaxException {
+		// this returns the arithmetic additive expression (lowest of arithmetic)
 		NodeTerm term = parseTerm();
 		NodeAddop addop = parseAddop();
 		if (addop == null)
@@ -128,28 +126,172 @@ public class Parser {
 		return expr;
 	}
 
+	/* --- New: boolean / relational operators --- */
+
+	// relational: uses arithmetic expressions on each side
+	private Node parseRelational() throws SyntaxException {
+		NodeExpr left = parseExpr();
+		// check relational ops
+		if (curr().equals(new Token("<"))) {
+			match("<");
+			NodeExpr right = parseExpr();
+			return new NodeRel(left, "<", right, pos());
+		}
+		if (curr().equals(new Token("<="))) {
+			match("<=");
+			NodeExpr right = parseExpr();
+			return new NodeRel(left, "<=", right, pos());
+		}
+		if (curr().equals(new Token(">"))) {
+			match(">");
+			NodeExpr right = parseExpr();
+			return new NodeRel(left, ">", right, pos());
+		}
+		if (curr().equals(new Token(">="))) {
+			match(">=");
+			NodeExpr right = parseExpr();
+			return new NodeRel(left, ">=", right, pos());
+		}
+		if (curr().equals(new Token("=="))) {
+			match("==");
+			NodeExpr right = parseExpr();
+			return new NodeRel(left, "==", right, pos());
+		}
+		if (curr().equals(new Token("!="))) {
+			match("!=");
+			NodeExpr right = parseExpr();
+			return new NodeRel(left, "!=", right, pos());
+		}
+		// no relational operator -> just return the arithmetic expression node
+		return left;
+	}
+
+	// logical NOT / parentheses handled here: we support '!' unary operator
+	private Node parseUnaryLogic() throws SyntaxException {
+		if (curr().equals(new Token("!"))) {
+			match("!");
+			Node operand = parseUnaryLogic(); // allow chaining !
+			return new NodeNot(operand, pos());
+		}
+		// if next tokens begin an arithmetic/relational expression
+		return parseRelational();
+	}
+
+	// logical AND has higher precedence than OR
+	private Node parseAnd() throws SyntaxException {
+		Node left = parseUnaryLogic();
+		while (curr().equals(new Token("&&"))) {
+			match("&&");
+			Node right = parseUnaryLogic();
+			left = new NodeAnd(left, right);
+		}
+		return left;
+	}
+
+	private Node parseOr() throws SyntaxException {
+		Node left = parseAnd();
+		while (curr().equals(new Token("||"))) {
+			match("||");
+			Node right = parseAnd();
+			left = new NodeOr(left, right);
+		}
+		return left;
+	}
+
+	/* --- Statements --- */
+
 	private NodeAssn parseAssn() throws SyntaxException {
 		Token id = curr();
 		match("id");
 		match("=");
 		NodeExpr expr = parseExpr();
-		NodeAssn assn = new NodeAssn(id.lex(), expr);
-		return assn;
+		return new NodeAssn(id.lex(), expr);
 	}
 
-	private NodeStmt parseStmt() throws SyntaxException {
-		NodeAssn assn = parseAssn();
-		match(";");
-		NodeStmt stmt = new NodeStmt(assn);
-		return stmt;
+	private Node parseIf() throws SyntaxException {
+		match("if");
+		match("(");
+		Node cond = parseOr();
+		match(")");
+		Node thenStmt = parseStmt(); // a statement
+		Node elseStmt = null;
+		if (curr().equals(new Token("else"))) {
+			match("else");
+			elseStmt = parseStmt();
+		}
+		return new NodeIf(cond, thenStmt, elseStmt);
+	}
+
+	private Node parseWhile() throws SyntaxException {
+		match("while");
+		match("(");
+		Node cond = parseOr();
+		match(")");
+		Node body = parseStmt();
+		return new NodeWhile(cond, body);
+	}
+
+	private Node parseBlock() throws SyntaxException {
+		match("{");
+		java.util.List<Node> stmts = new java.util.ArrayList<>();
+		// accept zero or more statements inside block
+		while (!curr().equals(new Token("}"))) {
+			Node s = parseStmt();
+			// allow optional semicolon after statements (except block)
+			if (curr().equals(new Token(";")))
+				match(";");
+			stmts.add(s);
+		}
+		match("}");
+		return new NodeBlock(stmts);
+	}
+
+	private Node parseRd() throws SyntaxException {
+		match("rd");
+		match("(");
+		Token id = curr();
+		match("id");
+		match(")");
+		return new NodeRd(id.lex());
+	}
+
+	// NOTE: There is already NodeWr class (wr(expr)) in your TA1 code.
+	private Node parseWr() throws SyntaxException {
+		match("wr");
+		match("(");
+		Node expr = parseOr(); // wr can take full expression
+		match(")");
+		return new NodeWrAdapter(expr); // adapter to fit NodeWr API
+	}
+
+	// parse a single statement (assignment, if, while, block, rd, wr)
+	private Node parseStmt() throws SyntaxException {
+		Token t = curr();
+		if (t.equals(new Token("if"))) {
+			return parseIf();
+		} else if (t.equals(new Token("while"))) {
+			return parseWhile();
+		} else if (t.equals(new Token("{"))) {
+			return parseBlock();
+		} else if (t.equals(new Token("rd"))) {
+			Node rd = parseRd();
+			// statements that are rd(...) and wr(...) should be terminated by ';' by caller
+			return rd;
+		} else if (t.equals(new Token("wr"))) {
+			Node wr = parseWr();
+			return wr;
+		} else {
+			// assignment
+			NodeAssn assn = parseAssn();
+			return assn;
+		}
 	}
 
 	public Node parse(String program) throws SyntaxException {
-		scanner = new Scanner(program);
-		scanner.next();
-		NodeStmt stmt = parseStmt();
-		match("EOF");
-		return stmt;
-	}
-
+    scanner = new Scanner(program);
+    scanner.next();
+    Node block = parseStmtList();
+    match("EOF");
+    return new NodeStmt(block);  
+}
 }

@@ -31,9 +31,9 @@ for t in test-* ; do
     echo ${t##*/}
     [ -f $t/inp ] || > $t/inp
     export Code=$t/gen
-    eval java -cp .. Main "$(Prgs $t/prg*)" < $t/inp > $t/out.i
+    eval java Main "$(Prgs $t/prg*)" < $t/inp > $t/out.i
     Compare $t i
-    clang-format -i $Code.c 
+    #clang-format -i $Code.c 
     gcc -Wall $Code.c -o $Code 2>$t/gccerrs && $Code < $t/inp > $t/out.c
     Compare $t c
 done
